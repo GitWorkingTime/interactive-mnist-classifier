@@ -281,6 +281,10 @@ public:
      *
      * @throws std::invalid_argument if dimensions are incompatible
      *
+     * @note W represents rows and H represents columns.
+     *       For multiplication to be valid, this Tensor's W must be equal
+     *       to the given Tensor's H. Both Tensor's depths must be equal.
+     *
      * @par Example
      * @code
      * Tensor a({2, 2, 1}, {1, 2, 3, 4});
