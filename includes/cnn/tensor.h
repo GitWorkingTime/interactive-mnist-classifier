@@ -10,6 +10,7 @@
 // ─── Class Declaration ───────────────────────────────────────────────────────
 /**
  * @brief A 3D Tensor class backed by a 1D float array
+ *
  * @par Description
  * Represents a 3D Tensor with the shape {W, H, D}. All values
  * are stored internally as a 1D array in row-major order
@@ -28,7 +29,7 @@
 class Tensor {
 private:
     /**
-     * @brief flat 1D array storing all tensor values in row-major value
+     * @brief flat 1D array storing all tensor values in row-major order
      */
     std::vector<float> data;
 
@@ -68,6 +69,8 @@ public:
      * Maps each float value in [0, 1] to an ASCII character to produce
      * a visual representation of the tensor. If D > 1, each depth slice
      * is displayed separately.
+     *
+     * @note Values are normalized to [0, 1] if they are not already
      *
      * @par Example
      * @code
@@ -282,7 +285,18 @@ public:
      * @code
      * Tensor a({2, 2, 1}, {1, 2, 3, 4});
      * Tensor b({2, 2, 1}, {5, 6, 7, 8});
-     * Tensor c = a.multiply(b); // {19, 22, 43, 50}
+     * Tensor c = a.multiply(b);
+     * //   {19, 22
+     * //    43, 50}
+     *
+     * Tensor d({2, 3, 2}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+     * Tensor e({3, 1, 2}, {1, 2, 3, 4, 5, 6});
+     * Tensor f = d.multiply(e);
+     * //   D = 0:
+     * //   {22, 28}
+     * //
+     * //   D = 1:
+     * //   {139, 154}
      * @endcode
      */
     Tensor multiply(const Tensor& tensor) const;
@@ -323,7 +337,21 @@ public:
      * @return A new Tensor containing the convolution result with D = 1.
      *
      * @throws std::invalid_argument if filter D does not match this Tensor's D
-     * @throws std::invalid_argument if stride and/or padding does not result in a whole integer for the final width and height
+     * @throws std::invalid_argument if stride and/or padding does not result in a positive integer for the final tensor size
+     *
+     * @note The final width and height are calculated using this formula: {(W - F + 2P) / S} + 1
+     * where:
+     * - W: input volume size
+     * - F: receptive field size
+     * - S: stride
+     * - P: padding
+     *
+     * For example: 7x7 input with a 3x3 filter, stride = 1, padding = 0.
+     * W (width)  - [(7 - 3 + 2(0)) / 1] + 1 => [(4) / 1] + 1 => 5
+     * H (height) - [(7 - 3 + 2(0)) / 1] + 1 => [(4) / 1] + 1 => 5
+     * We would get a 5x5 result
+     *
+     * If the strides and/or padding results is not a positive integer, the parameters are invalid
      *
      * @par Example
      * @code
@@ -368,6 +396,32 @@ public:
      * @endcode
      */
     Tensor flatten() const;
+
+    /**
+     * @brief Returns a zero-padded copy of the Tensor.
+     *
+     * @par Description
+     * Adds P layers of zeros around the W and H dimensions.
+     * Commonly used before convolution to preserve spatial dimensions.
+     * D is unchanged.
+     *
+     * @param padding Number of zero layers to add around W and H borders.
+     *
+     * @return A new Tensor with shape {W+2P, H+2P, D}.
+     *
+     * @throws std::invalid_argument if padding < 0
+     *
+     * @par Example
+     * @code
+     * Tensor t({2, 2, 1}, {1, 2, 3, 4});
+     * Tensor p = t.pad(1); // shape {4, 4, 1}
+     * //   0 0 0 0
+     * //   0 1 2 0
+     * //   0 3 4 0
+     * //   0 0 0 0
+     * @endcode
+     */
+    Tensor pad(int padding) const;
 
     // ─── Operator Overloading ─────────────────────────────────────────────────
     /**
