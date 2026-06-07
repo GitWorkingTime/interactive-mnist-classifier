@@ -2,7 +2,10 @@
 #define TENSOR_H
 
 // ─── Imports ─────────────────────────────────────────────────────────────────
+#include <algorithm>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -95,12 +98,16 @@ public:
      * Tensor t({2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8});
      * t.displayRaw();
      * //   D = 0:
-     * //   1 2
-     * //   3 4
+     * //   ┌     ┐
+     * //   │ 1 2 │
+     * //   │ 3 4 │
+     * //   └     ┘
      * //
      * //   D = 1:
-     * //   5 6
-     * //   7 8
+     * //   ┌     ┐
+     * //   │ 5 6 │
+     * //   │ 7 8 │
+     * //   └     ┘
      * @endcode
      */
     void displayRaw() const;
