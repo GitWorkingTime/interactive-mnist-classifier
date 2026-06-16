@@ -3,6 +3,7 @@
 
 // ─── Imports ─────────────────────────────────────────────────────────────────
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -288,7 +289,7 @@ public:
      *
      * @throws std::invalid_argument if dimensions are incompatible
      *
-     * @note W represents rows and H represents columns.
+     * @note W represents columns and H represents rows.
      *       For multiplication to be valid, this Tensor's W must be equal
      *       to the given Tensor's H. Both Tensor's depths must be equal.
      *
@@ -300,14 +301,16 @@ public:
      * //   {19, 22
      * //    43, 50}
      *
-     * Tensor d({2, 3, 2}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-     * Tensor e({3, 1, 2}, {1, 2, 3, 4, 5, 6});
+     * Tensor d({3, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+     * Tensor e({1, 3, 2}, {1, 2, 3, 4, 5, 6});
      * Tensor f = d.multiply(e);
      * //   D = 0:
-     * //   {22, 28}
+     * //   {14,
+     * //    32}
      * //
      * //   D = 1:
-     * //   {139, 154}
+     * //   {122,
+     * //    167}
      * @endcode
      */
     Tensor multiply(const Tensor& tensor) const;
@@ -460,6 +463,7 @@ public:
      * @brief Returns true if two Tensors have identical shape and data.
      *
      * @param tensor The Tensor to compare against.
+     *
      * @return True if shape and all data elements are equal, false otherwise.
      *
      * @par Example
@@ -476,7 +480,10 @@ public:
      * @brief Returns a Tensor of the given shape filled with zeros.
      *
      * @param shape Dimensions in {W, H, D} format, each >= 1
+     *
      * @return A new Tensor with all elements set to 0.0f
+     *
+     * @throws std::invalid_argument if the given shape does not match the {W, H, D} format
      *
      * @par Example
      * @code
@@ -489,7 +496,10 @@ public:
      * @brief Returns a Tensor of the given shape filled with ones.
      *
      * @param shape Dimensions in {W, H, D} format, each >= 1
+     *
      * @return A new Tensor with all elements set to 1.0f
+     *
+     * @throws std::invalid_argument if the given shape does not match the {W, H, D} format
      *
      * @par Example
      * @code

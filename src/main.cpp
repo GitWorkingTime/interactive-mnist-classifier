@@ -90,10 +90,16 @@ int main() {
                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0})};
 
-    for (std::size_t i = 0; i < testImages.size(); ++i) {
-        testImages[i].displayASCII();
-        testImages[i].displayRaw();
-    }
+    // for (std::size_t i = 0; i < testImages.size(); ++i) {
+    //     testImages[i].displayASCII();
+    //     testImages[i].displayRaw();
+    // }
+
+    Tensor a({3, 3, 1}, {1, 2, 3, 4, 5, 6, 7, 8, 9});
+    Tensor filter({2, 2, 1}, {1, 0, 0, 1});
+
+    Tensor result = a.convolve(filter, 0, 1, 0);
+    result.displayRaw();
 
     return 0;
 }
