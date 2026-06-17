@@ -19,13 +19,21 @@ ${CMAKE_BINARY_DIR}/generated
 )
 
 # ── Testing ───────────────────────────────────────────────────────────────────
-add_executable(test
-    # ── Add Files here ────────────────────────────────────────────────────────
+function(add_cnn_test name)
+    add_executable(${name} ${ARGN})
+    target_include_directories(${name} PRIVATE
+        ${PROJECT_SOURCE_DIR}/includes/cnn
+        ${CMAKE_BINARY_DIR}/generated
+    )
+endfunction()
+
+add_cnn_test(test_tensor
     "tests/cnn/test_tensor.cpp"
     "src/cnn/tensor.cpp"
 )
 
-target_include_directories(test PRIVATE
-${PROJECT_SOURCE_DIR}/includes/cnn
-${CMAKE_BINARY_DIR}/generated
+add_cnn_test(test_activations
+    "tests/cnn/test_activations.cpp"
+    "src/cnn/activations.cpp"
+    "src/cnn/tensor.cpp"
 )
