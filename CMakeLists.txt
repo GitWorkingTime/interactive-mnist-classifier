@@ -45,3 +45,9 @@ add_cnn_test(test_pooling
     "src/cnn/operations/pooling.cpp"
     "src/cnn/operations/tensor.cpp"
 )
+
+add_cnn_test(test_loss
+    "tests/cnn/test_loss.cpp"
+    "src/cnn/operations/loss.cpp"
+    "src/cnn/operations/tensor.cpp"
+)
