@@ -1,6 +1,7 @@
 #include "activations.h"
 #include "tensor.h"
 #include <cassert>
+#include <cmath>
 #include <iostream>
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,6 +151,91 @@ void test_relu_and_deriv_agree_on_sign() {
     std::cout << "PASSED: test_relu_and_deriv_agree_on_sign\n";
 }
 
+// ─── softMax tests (append these to your existing activations test file) ──────
+void test_softmax_sums_to_one() {
+    Tensor a({3, 1, 1}, {1, 2, 3});
+    Tensor s = activations::softMax(a);
+    float sum = 0.0f;
+    for (float v : s.getData())
+        sum += v;
+    assert(floatEq(sum, 1.0f));
+    std::cout << "PASSED: test_softmax_sums_to_one\n";
+}
+
+void test_softmax_values() {
+    // softmax({1,2,3}) ≈ {0.090, 0.245, 0.665}
+    Tensor a({3, 1, 1}, {1, 2, 3});
+    Tensor s = activations::softMax(a);
+    assert(floatEq(s.at({0, 0, 0}), 0.090f));
+    assert(floatEq(s.at({1, 0, 0}), 0.245f));
+    assert(floatEq(s.at({2, 0, 0}), 0.665f));
+    std::cout << "PASSED: test_softmax_values\n";
+}
+
+void test_softmax_all_in_unit_range() {
+    Tensor a({5, 1, 1}, {-3, 0, 1, 4, 10});
+    Tensor s = activations::softMax(a);
+    for (float v : s.getData()) {
+        assert(v > 0.0f);
+        assert(v < 1.0f);
+    }
+    std::cout << "PASSED: test_softmax_all_in_unit_range\n";
+}
+
+void test_softmax_preserves_order() {
+    // The largest input must map to the largest probability
+    Tensor a({4, 1, 1}, {2, 7, 1, 5});
+    Tensor s = activations::softMax(a);
+    const std::vector<float>& out = s.getData();
+    for (std::size_t i = 0; i < out.size(); ++i)
+        if (i != 1)
+            assert(out[1] > out[i]); // index 1 (value 7) is largest
+    std::cout << "PASSED: test_softmax_preserves_order\n";
+}
+
+void test_softmax_uniform_input() {
+    // Equal logits → equal probabilities (1/n each)
+    Tensor a({3, 1, 1}, {5, 5, 5});
+    Tensor s = activations::softMax(a);
+    for (float v : s.getData())
+        assert(floatEq(v, 1.0f / 3.0f));
+    std::cout << "PASSED: test_softmax_uniform_input\n";
+}
+
+void test_softmax_numerical_stability() {
+    // Large inputs would overflow exp() without the max-subtraction trick.
+    Tensor a({3, 1, 1}, {1000, 1001, 1002});
+    Tensor s = activations::softMax(a);
+    const std::vector<float>& out = s.getData();
+    float sum = 0.0f;
+    for (float v : out) {
+        assert(std::isfinite(v)); // not nan or inf
+        sum += v;
+    }
+    assert(floatEq(sum, 1.0f));
+    // shift-invariance: same gaps as {1,2,3} → same distribution
+    assert(floatEq(out[0], 0.090f));
+    assert(floatEq(out[1], 0.245f));
+    assert(floatEq(out[2], 0.665f));
+    std::cout << "PASSED: test_softmax_numerical_stability\n";
+}
+
+void test_softmax_preserves_shape() {
+    Tensor a({4, 1, 1}, {1, 2, 3, 4});
+    Tensor s = activations::softMax(a);
+    assert(s.getShape() == a.getShape());
+    std::cout << "PASSED: test_softmax_preserves_shape\n";
+}
+
+void test_softmax_does_not_mutate_original() {
+    Tensor a({3, 1, 1}, {1, 2, 3});
+    Tensor s = activations::softMax(a);
+    assert(floatEq(a.at({0, 0, 0}), 1.0f));
+    assert(floatEq(a.at({1, 0, 0}), 2.0f));
+    assert(floatEq(a.at({2, 0, 0}), 3.0f));
+    std::cout << "PASSED: test_softmax_does_not_mutate_original\n";
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 int main() {
     // ReLU
@@ -172,6 +258,16 @@ int main() {
 
     // Relationship
     test_relu_and_deriv_agree_on_sign();
+
+    // Softmax
+    test_softmax_sums_to_one();
+    test_softmax_values();
+    test_softmax_all_in_unit_range();
+    test_softmax_preserves_order();
+    test_softmax_uniform_input();
+    test_softmax_numerical_stability();
+    test_softmax_preserves_shape();
+    test_softmax_does_not_mutate_original();
 
     std::cout << "\nAll activation tests passed\n";
     return 0;
