@@ -11,6 +11,7 @@ add_executable(main
     "src/main.cpp"
     "src/cnn/operations/tensor.cpp"
     "src/cnn/operations/activations.cpp"
+    "src/cnn/operations/pooling.cpp"
 )
 
 # ── Header Files ──────────────────────────────────────────────────────────────
@@ -36,5 +37,11 @@ add_cnn_test(test_tensor
 add_cnn_test(test_activations
     "tests/cnn/test_activations.cpp"
     "src/cnn/operations/activations.cpp"
+    "src/cnn/operations/tensor.cpp"
+)
+
+add_cnn_test(test_pooling
+    "tests/cnn/test_pooling.cpp"
+    "src/cnn/operations/pooling.cpp"
     "src/cnn/operations/tensor.cpp"
 )

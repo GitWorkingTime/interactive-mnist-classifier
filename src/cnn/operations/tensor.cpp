@@ -306,6 +306,10 @@ Tensor Tensor::transpose() const {
     return Tensor({H, W, D}, result);
 }
 
+// Each output cell is a dot product of the filter against the input window
+// at that position, summed across all channels (depth collapses to 1).
+// Pointers are hoisted per loop level (slice → row) to avoid recomputing
+// offsets in the hot inner loop. See multiply() for the same pattern.
 Tensor Tensor::convolve(const Tensor& filter, float bias, std::size_t stride, std::size_t padding) const {
     // Validate dimensions
     std::vector<int> filterShape = filter.getShape();

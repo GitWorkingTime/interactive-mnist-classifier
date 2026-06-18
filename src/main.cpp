@@ -1,5 +1,7 @@
+#include "pooling.h"
 #include "tensor.h"
 #include <iostream>
+#include <numeric>
 
 int main() {
     std::vector<Tensor> testImages = {
@@ -94,12 +96,5 @@ int main() {
     //     testImages[i].displayASCII();
     //     testImages[i].displayRaw();
     // }
-
-    Tensor a({3, 3, 1}, {1, 2, 3, 4, 5, 6, 7, 8, 9});
-    Tensor filter({2, 2, 1}, {1, 0, 0, 1});
-
-    Tensor result = a.convolve(filter, 0, 1, 0);
-    result.displayRaw();
-
     return 0;
 }
