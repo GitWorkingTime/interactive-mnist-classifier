@@ -3,7 +3,7 @@
 #include <cmath>
 #include <stdexcept>
 
-// ─── Function declarations ───────────────────────────────────────────────────
+// ─── Function Definitions ────────────────────────────────────────────────────
 float loss::crossEntropy(const Tensor& prediction, const Tensor& target) {
     // Shapes must match — each predicted probability pairs with its target
     if (prediction.getShape() != target.getShape()) {

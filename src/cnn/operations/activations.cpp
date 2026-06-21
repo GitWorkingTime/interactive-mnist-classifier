@@ -1,6 +1,7 @@
 // ─── Imports ─────────────────────────────────────────────────────────────────
 #include "activations.h"
 
+// ─── Function Definitions ────────────────────────────────────────────────────
 Tensor activations::ReLU(const Tensor& tensor) {
     // Make a copy to use for the new tensor. Don't mutate the original tensor
     std::vector<float> tensorData = tensor.getData();

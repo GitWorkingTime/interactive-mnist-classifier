@@ -12,11 +12,13 @@ add_executable(main
     "src/cnn/operations/tensor.cpp"
     "src/cnn/operations/activations.cpp"
     "src/cnn/operations/pooling.cpp"
+    "src/cnn/helpers/weights_init.cpp"
 )
 
 # ── Header Files ──────────────────────────────────────────────────────────────
 target_include_directories(main PRIVATE
 ${PROJECT_SOURCE_DIR}/includes/cnn/operations
+${PROJECT_SOURCE_DIR}/includes/cnn/helpers
 ${CMAKE_BINARY_DIR}/generated
 )
 
@@ -25,6 +27,7 @@ function(add_cnn_test name)
     add_executable(${name} ${ARGN})
     target_include_directories(${name} PRIVATE
         ${PROJECT_SOURCE_DIR}/includes/cnn/operations
+        ${PROJECT_SOURCE_DIR}/includes/cnn/helpers
         ${CMAKE_BINARY_DIR}/generated
     )
 endfunction()
@@ -49,5 +52,11 @@ add_cnn_test(test_pooling
 add_cnn_test(test_loss
     "tests/cnn/test_loss.cpp"
     "src/cnn/operations/loss.cpp"
+    "src/cnn/operations/tensor.cpp"
+)
+
+add_cnn_test(test_weights
+    "tests/cnn/test_weights.cpp"
+    "src/cnn/helpers/weights_init.cpp"
     "src/cnn/operations/tensor.cpp"
 )
