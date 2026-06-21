@@ -13,6 +13,7 @@ add_executable(main
     "src/cnn/operations/activations.cpp"
     "src/cnn/operations/pooling.cpp"
     "src/cnn/helpers/weights_init.cpp"
+    "src/cnn/helpers/mnist.cpp"
 )
 
 # ── Header Files ──────────────────────────────────────────────────────────────
