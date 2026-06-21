@@ -60,3 +60,9 @@ add_cnn_test(test_weights
     "src/cnn/helpers/weights_init.cpp"
     "src/cnn/operations/tensor.cpp"
 )
+
+add_cnn_test(test_mnist
+    "tests/cnn/test_mnist.cpp"
+    "src/cnn/helpers/mnist.cpp"
+    "src/cnn/operations/tensor.cpp"
+)
