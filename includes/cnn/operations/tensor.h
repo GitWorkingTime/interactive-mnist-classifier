@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// ─── Class Declaration ───────────────────────────────────────────────────────
+// ─── Class declaration ───────────────────────────────────────────────────────
 /**
  * @brief A 3D Tensor class backed by a 1D float array
  *
@@ -64,6 +64,9 @@ public:
      * @endcode
      */
     Tensor(const std::vector<int>& shape, const std::vector<float>& values);
+
+    // Default constructor
+    Tensor() : shape{0, 0, 0}, data{} {};
 
     // ─── Display (in terminal) ────────────────────────────────────────────────
     /**
