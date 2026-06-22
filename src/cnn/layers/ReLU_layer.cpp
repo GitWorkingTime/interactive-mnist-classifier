@@ -1,7 +1,7 @@
 // ─── Imports ─────────────────────────────────────────────────────────────────
 #include "ReLU_layer.h"
 
-// ─── Class declarations ──────────────────────────────────────────────────────
+// ─── Class definitions ───────────────────────────────────────────────────────
 Tensor ReLULayer::forward(const Tensor& input) {
     // Stash input tensor
     this->input = input;
