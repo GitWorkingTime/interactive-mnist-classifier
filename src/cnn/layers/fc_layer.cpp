@@ -62,7 +62,6 @@ void FCLayer::updateWeights(float learningRate) {
     bias = Tensor(bias.getShape(), newBias);
 }
 
-// FC_layer.cpp
 void FCLayer::save(std::ofstream& file) const {
     // Write weights: shape (3 ints) then data
     const std::vector<int>& wShape = weights.getShape();

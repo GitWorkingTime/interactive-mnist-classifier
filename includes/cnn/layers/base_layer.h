@@ -25,6 +25,11 @@
  * mask, or argmax indices) stash it during forward() and read it during
  * backward(). Layers with learnable parameters (weights, filters, biases)
  * additionally manage those parameters and their gradients.
+ *
+ * @note updateWeights(), save(), and load() have empty default implementations so
+ * that layers without learnable parameters (ReLU, pooling) inherit no-ops, while
+ * parameterized layers (convolution, fully connected) override them. This lets the
+ * network update or serialize every layer uniformly through a single loop.
  */
 class BaseLayer {
 public:
@@ -52,8 +57,8 @@ public:
      * to the previous layer. Layers with learnable parameters also use this step
      * to compute their parameter gradients (stored internally for the optimizer).
      *
-     * @param gradInput The gradient of the loss with respect to this layer's
-     *                  output (flowing back from the next layer).
+     * @param gradOutput The gradient of the loss with respect to this layer's
+     *                   output (flowing back from the next layer).
      *
      * @return The gradient of the loss with respect to this layer's input.
      */
@@ -69,10 +74,46 @@ public:
      */
     virtual ~BaseLayer() = default;
 
-    // in BaseLayer
-    virtual void updateWeights(float learningRate) {} // default: do nothing
+    /**
+     * @brief Applies one gradient-descent step to the layer's parameters.
+     *
+     * @par Description
+     * Updates any learnable parameters using the gradients computed during
+     * backward(). The default implementation does nothing, which is correct for
+     * layers without parameters (ReLU, pooling). Parameterized layers override
+     * this to update their weights/filters and biases.
+     *
+     * @param learningRate The step size for gradient descent.
+     */
+    virtual void updateWeights(float learningRate) {}
 
+    /**
+     * @brief Writes the layer's learnable parameters to a binary file stream.
+     *
+     * @par Description
+     * Serializes any learnable parameters (and their shapes) to the given output
+     * stream so the trained model can be saved and reloaded later. The default
+     * implementation writes nothing, which is correct for layers without
+     * parameters. Parameterized layers override this to write their weights/filters
+     * and biases. Layers must write their data in the same order load() reads it.
+     *
+     * @param file An open binary output stream positioned where this layer's
+     *             data should be written.
+     */
     virtual void save(std::ofstream& file) const {}
+
+    /**
+     * @brief Reads the layer's learnable parameters from a binary file stream.
+     *
+     * @par Description
+     * Deserializes any learnable parameters from the given input stream, reversing
+     * what save() wrote. The default implementation reads nothing, matching layers
+     * that have no parameters. Parameterized layers override this to read their
+     * weights/filters and biases. The data must be read in the same order it was
+     * written, and the network architecture must match the one that was saved.
+     *
+     * @param file An open binary input stream positioned at this layer's data.
+     */
     virtual void load(std::ifstream& file) {}
 };
 

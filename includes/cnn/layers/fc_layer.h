@@ -5,6 +5,7 @@
 #include "base_layer.h"
 #include "tensor.h"
 #include "weights_init.h"
+#include <fstream>
 #include <stdexcept>
 #include <vector>
 
@@ -38,7 +39,6 @@ private:
     Tensor weightGrad; // same shape as weights
     Tensor biasGrad;   // same shape as bias
 
-public:
 public:
     /**
      * @brief Constructs a fully connected layer and initializes its parameters.
@@ -112,9 +112,32 @@ public:
      * @param learningRate The step size. Larger values take bigger steps (faster
      *                     but risk overshooting); smaller values learn more slowly.
      */
-    void updateWeights(float learningRate);
+    void updateWeights(float learningRate) override;
 
+    /**
+     * @brief Writes the weights and bias to a binary file stream.
+     *
+     * @par Description
+     * Serializes the weight matrix (its shape followed by its data) and then the
+     * bias (its shape followed by its data), in that order. load() must read them
+     * back in the same order. Overrides the BaseLayer no-op since this layer has
+     * learnable parameters.
+     *
+     * @param file An open binary output stream positioned where this layer writes.
+     */
     void save(std::ofstream& file) const override;
+
+    /**
+     * @brief Reads the weights and bias from a binary file stream.
+     *
+     * @par Description
+     * Deserializes the weights and bias written by save(), in the same order. Each
+     * is read by first reading its shape (which gives the element count) and then
+     * its data, so the loaded tensors reconstruct exactly. The layer must be
+     * constructed with the same dimensions that were saved.
+     *
+     * @param file An open binary input stream positioned at this layer's data.
+     */
     void load(std::ifstream& file) override;
 };
 
