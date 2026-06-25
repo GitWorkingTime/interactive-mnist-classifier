@@ -114,3 +114,29 @@ void ConvLayer::updateWeights(float learningRate) {
         biases[f] -= learningRate * biasGrads[f];
     }
 }
+
+void ConvLayer::save(std::ofstream& file) const {
+    // Write each filter: shape then data
+    for (const Tensor& filter : filters) {
+        const std::vector<int>& fShape = filter.getShape();
+        file.write(reinterpret_cast<const char*>(fShape.data()), 3 * sizeof(int));
+        const std::vector<float>& fData = filter.getData();
+        file.write(reinterpret_cast<const char*>(fData.data()), fData.size() * sizeof(float));
+    }
+    // Write biases (numFilters floats)
+    file.write(reinterpret_cast<const char*>(biases.data()), biases.size() * sizeof(float));
+}
+
+void ConvLayer::load(std::ifstream& file) {
+    // Read each filter (we know there are numFilters of them)
+    for (int f = 0; f < numFilters; ++f) {
+        std::vector<int> fShape(3);
+        file.read(reinterpret_cast<char*>(fShape.data()), 3 * sizeof(int));
+        int fSize = fShape[0] * fShape[1] * fShape[2];
+        std::vector<float> fData(fSize);
+        file.read(reinterpret_cast<char*>(fData.data()), fSize * sizeof(float));
+        filters[f] = Tensor(fShape, fData);
+    }
+    // Read biases
+    file.read(reinterpret_cast<char*>(biases.data()), biases.size() * sizeof(float));
+}

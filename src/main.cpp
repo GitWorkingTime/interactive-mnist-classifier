@@ -23,6 +23,24 @@ int argmax(const Tensor& prediction) {
     return best;
 }
 
+void saveModel(const std::string& path, const std::vector<BaseLayer*>& network) {
+    std::ofstream file(path, std::ios::binary);
+    if (!file.is_open())
+        throw std::runtime_error("Cannot open file for saving: " + path);
+    for (BaseLayer* layer : network) {
+        layer->save(file); // ReLU/pool do nothing; conv/FC write their params
+    }
+}
+
+void loadModel(const std::string& path, const std::vector<BaseLayer*>& network) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open())
+        throw std::runtime_error("Cannot open file for loading: " + path);
+    for (BaseLayer* layer : network) {
+        layer->load(file); // ReLU/pool do nothing; conv/FC read their params
+    }
+}
+
 int main() {
     // ── Load the data ─────────────────────────────────────────────────────────
     std::vector<Tensor> images = mnist::loadImages("../data/train-images.idx3-ubyte");
@@ -101,8 +119,75 @@ int main() {
                   << " ===\n";
     }
 
-    // ── Clean up ──────────────────────────────────────────────────────────────
+    // ── After training: save the model ────────────────────────────────────────
+    saveModel("model.bin", network);
+
+    // ── Round-trip test: record predictions from the trained network ──────────
+    std::cout << "\n=== Round-trip test ===\n";
+    std::vector<int> originalPredictions;
+    std::vector<std::vector<float>> originalProbs; // full probability vectors
+
+    for (int n = 0; n < 10; ++n) { // test on first 10 images
+        Tensor activation = images[n];
+        for (BaseLayer* layer : network) {
+            activation = layer->forward(activation);
+        }
+        Tensor prediction = activations::softMax(activation);
+        originalPredictions.push_back(argmax(prediction));
+        originalProbs.push_back(prediction.getData());
+    }
+
+    // Free the trained network
     for (BaseLayer* layer : network) {
+        delete layer;
+    }
+
+    // ── Rebuild the SAME architecture and load the saved parameters ───────────
+    std::vector<BaseLayer*> loaded = {
+        new ConvLayer(8, 3, 1),
+        new ReLULayer(),
+        new MaxPoolingLayer(2, 2),
+        new FCLayer(13 * 13 * 8, 10)};
+    loadModel("model.bin", loaded);
+
+    // ── Run the same images through the loaded network and compare ────────────
+    int matches = 0;
+    bool allClose = true;
+    for (int n = 0; n < 10; ++n) {
+        Tensor activation = images[n];
+        for (BaseLayer* layer : loaded) {
+            activation = layer->forward(activation);
+        }
+        Tensor prediction = activations::softMax(activation);
+
+        // Same predicted class?
+        if (argmax(prediction) == originalPredictions[n]) {
+            matches++;
+        }
+
+        // Same probabilities (within tolerance)?
+        const std::vector<float>& probs = prediction.getData();
+        for (std::size_t i = 0; i < probs.size(); ++i) {
+            if (std::abs(probs[i] - originalProbs[n][i]) > 1e-5f) {
+                allClose = false;
+            }
+        }
+
+        std::cout << "image " << n
+                  << " | original pred: " << originalPredictions[n]
+                  << " | loaded pred: " << argmax(prediction) << "\n";
+    }
+
+    std::cout << "\nPredictions matching: " << matches << "/10\n";
+    std::cout << "Probabilities identical: " << (allClose ? "YES" : "NO") << "\n";
+    if (matches == 10 && allClose) {
+        std::cout << "ROUND-TRIP PASSED: loaded model is identical to saved model\n";
+    } else {
+        std::cout << "ROUND-TRIP FAILED: loaded model differs\n";
+    }
+
+    // Clean up
+    for (BaseLayer* layer : loaded) {
         delete layer;
     }
 

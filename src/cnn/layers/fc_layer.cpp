@@ -61,3 +61,36 @@ void FCLayer::updateWeights(float learningRate) {
     }
     bias = Tensor(bias.getShape(), newBias);
 }
+
+// FC_layer.cpp
+void FCLayer::save(std::ofstream& file) const {
+    // Write weights: shape (3 ints) then data
+    const std::vector<int>& wShape = weights.getShape();
+    file.write(reinterpret_cast<const char*>(wShape.data()), 3 * sizeof(int));
+    const std::vector<float>& wData = weights.getData();
+    file.write(reinterpret_cast<const char*>(wData.data()), wData.size() * sizeof(float));
+
+    // Write bias: shape then data
+    const std::vector<int>& bShape = bias.getShape();
+    file.write(reinterpret_cast<const char*>(bShape.data()), 3 * sizeof(int));
+    const std::vector<float>& bData = bias.getData();
+    file.write(reinterpret_cast<const char*>(bData.data()), bData.size() * sizeof(float));
+}
+
+void FCLayer::load(std::ifstream& file) {
+    // Read weights: shape then data
+    std::vector<int> wShape(3);
+    file.read(reinterpret_cast<char*>(wShape.data()), 3 * sizeof(int));
+    int wSize = wShape[0] * wShape[1] * wShape[2];
+    std::vector<float> wData(wSize);
+    file.read(reinterpret_cast<char*>(wData.data()), wSize * sizeof(float));
+    weights = Tensor(wShape, wData);
+
+    // Read bias: shape then data
+    std::vector<int> bShape(3);
+    file.read(reinterpret_cast<char*>(bShape.data()), 3 * sizeof(int));
+    int bSize = bShape[0] * bShape[1] * bShape[2];
+    std::vector<float> bData(bSize);
+    file.read(reinterpret_cast<char*>(bData.data()), bSize * sizeof(float));
+    bias = Tensor(bShape, bData);
+}

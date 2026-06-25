@@ -78,6 +78,9 @@ public:
     Tensor getFilter(int i) const { return filters[i]; }
     Tensor getFilterGrad(int i) const { return filterGrads[i]; }
     float getBiasGrad(int i) const { return biasGrads[i]; }
+
+    void save(std::ofstream& file) const override;
+    void load(std::ifstream& file) override;
 };
 
 #endif

@@ -113,6 +113,9 @@ public:
      *                     but risk overshooting); smaller values learn more slowly.
      */
     void updateWeights(float learningRate);
+
+    void save(std::ofstream& file) const override;
+    void load(std::ifstream& file) override;
 };
 
 #endif

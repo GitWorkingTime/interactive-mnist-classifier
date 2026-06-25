@@ -3,6 +3,7 @@
 
 // ─── Imports ─────────────────────────────────────────────────────────────────
 #include "tensor.h"
+#include <fstream>
 
 // ─── Class declarations ──────────────────────────────────────────────────────
 /**
@@ -70,6 +71,9 @@ public:
 
     // in BaseLayer
     virtual void updateWeights(float learningRate) {} // default: do nothing
+
+    virtual void save(std::ofstream& file) const {}
+    virtual void load(std::ifstream& file) {}
 };
 
 #endif
