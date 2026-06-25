@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
 project(InteractiveMNISTClassifier)
 
+# Default to a Release build (optimized) if the user didn't specify
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+# Optimization flags for Release builds
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

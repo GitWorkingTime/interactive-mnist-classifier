@@ -67,6 +67,9 @@ public:
      * are properly released.
      */
     virtual ~BaseLayer() = default;
+
+    // in BaseLayer
+    virtual void updateWeights(float learningRate) {} // default: do nothing
 };
 
 #endif

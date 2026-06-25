@@ -61,20 +61,20 @@ std::vector<int> loadLabels(const std::string& path, bool verbose = false);
  * @brief Converts a single integer label into a one-hot encoded target Tensor.
  *
  * @par Description
- * Maps a digit label (0–9) to a {10, 1, 1} Tensor that is 1.0 at the index of
+ * Maps a digit label (0–9) to a {1, 10, 1} Tensor that is 1.0 at the index of
  * the label and 0.0 elsewhere. Used to build the target distribution for
  * cross-entropy loss during training.
  *
  * @param label The digit label, expected in [0, 9].
  *
- * @return A Tensor of shape {10, 1, 1}, one-hot encoded.
+ * @return A Tensor of shape {1, 10, 1}, one-hot encoded.
  *
  * @throws std::invalid_argument if label is not within [0, 9].
  *
  * @par Example
  * @code
  * Tensor v = mnist::oneHotEncodeLabels(3);
- * // v data = {0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, shape {10, 1, 1}
+ * // v data = {0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, shape {1, 10, 1}
  * @endcode
  */
 Tensor oneHotEncodeLabels(int label);

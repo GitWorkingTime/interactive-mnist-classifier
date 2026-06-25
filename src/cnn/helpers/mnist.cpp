@@ -121,5 +121,5 @@ Tensor mnist::oneHotEncodeLabels(int label) {
 
     std::vector<float> encode(10, 0.0f); // ten zeros
     encode[label] = 1.0f;                // set the one hot position
-    return Tensor({10, 1, 1}, encode);
+    return Tensor({1, 10, 1}, encode);
 }
