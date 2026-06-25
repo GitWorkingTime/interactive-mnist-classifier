@@ -1,6 +1,7 @@
 #include "tensor.h"
 #include <cassert>
 #include <iostream>
+#include <numeric>
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 bool floatEq(float a, float b, float tolerance = 0.001f) {
@@ -552,6 +553,217 @@ void test_pad_invalid() {
     std::cout << "PASSED: test_pad_invalid\n";
 }
 
+// ─── getSlice ─────────────────────────────────────────────────────────────────
+void test_getSlice() {
+    Tensor a({2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8});
+    Tensor b = a.getSlice(0);
+    Tensor c = a.getSlice(1);
+
+    // Returned slices have depth collapsed to 1
+    assert(b.getShape()[0] == 2);
+    assert(b.getShape()[1] == 2);
+    assert(b.getShape()[2] == 1);
+    assert(c.getShape()[2] == 1);
+
+    // Depth = 0: slice values match the original's depth-0 positions
+    assert(floatEq(b.at({0, 0, 0}), a.at({0, 0, 0})));
+    assert(floatEq(b.at({1, 0, 0}), a.at({1, 0, 0})));
+    assert(floatEq(b.at({0, 1, 0}), a.at({0, 1, 0})));
+    assert(floatEq(b.at({1, 1, 0}), a.at({1, 1, 0})));
+
+    // Depth = 1: slice values match the original's depth-1 positions
+    assert(floatEq(c.at({0, 0, 0}), a.at({0, 0, 1})));
+    assert(floatEq(c.at({1, 0, 0}), a.at({1, 0, 1})));
+    assert(floatEq(c.at({0, 1, 0}), a.at({0, 1, 1})));
+    assert(floatEq(c.at({1, 1, 0}), a.at({1, 1, 1})));
+
+    std::cout << "PASSED: test_getSlice\n";
+}
+
+void test_getSlice_depth1() {
+    // A depth-1 tensor: getSlice(0) returns the whole tensor unchanged
+    Tensor a({3, 3, 1}, {1, 2, 3, 4, 5, 6, 7, 8, 9});
+    Tensor s = a.getSlice(0);
+    assert(s.getShape() == a.getShape()); // {3,3,1}
+    for (int i = 0; i < 9; ++i)
+        assert(floatEq(s.getData()[i], a.getData()[i]));
+    std::cout << "PASSED: test_getSlice_depth1\n";
+}
+
+void test_getSlice_many_channels() {
+    // {1,1,3}: three single-element channels. Each slice is one value.
+    Tensor a({1, 1, 3}, {10, 20, 30});
+    assert(floatEq(a.getSlice(0).at({0, 0, 0}), 10.0f));
+    assert(floatEq(a.getSlice(1).at({0, 0, 0}), 20.0f));
+    assert(floatEq(a.getSlice(2).at({0, 0, 0}), 30.0f));
+    // each slice has shape {1,1,1}
+    assert(a.getSlice(0).getSize() == 1);
+    std::cout << "PASSED: test_getSlice_many_channels\n";
+}
+
+void test_getSlice_nonsquare() {
+    // {2,3,2}: non-square W != H, sliceSize = 2*3 = 6. Confirms the slice math
+    // uses W*H, not an assumption that the slice is square.
+    std::vector<float> data(12);
+    std::iota(data.begin(), data.end(), 1.0f); // 1..12
+    Tensor a({2, 3, 2}, data);
+
+    Tensor s0 = a.getSlice(0);
+    Tensor s1 = a.getSlice(1);
+
+    assert(s0.getShape()[0] == 2);
+    assert(s0.getShape()[1] == 3);
+    assert(s0.getShape()[2] == 1);
+    assert(s0.getSize() == 6);
+
+    // slice 0 = first 6 values, slice 1 = next 6
+    for (int i = 0; i < 6; ++i) {
+        assert(floatEq(s0.getData()[i], data[i]));
+        assert(floatEq(s1.getData()[i], data[i + 6]));
+    }
+    std::cout << "PASSED: test_getSlice_nonsquare\n";
+}
+
+void test_getSlice_is_copy() {
+    // The slice must be an independent copy — modifying the original after
+    // slicing must NOT change the slice (and vice versa).
+    Tensor a({2, 2, 1}, {1, 2, 3, 4});
+    Tensor s = a.getSlice(0);
+
+    a.at({0, 0, 0}) = 99.0f; // mutate the original
+
+    // the slice still holds the original value, not 99
+    assert(floatEq(s.at({0, 0, 0}), 1.0f));
+    std::cout << "PASSED: test_getSlice_is_copy\n";
+}
+
+void test_getSlice_invalid() {
+    Tensor a({2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8});
+
+    // Negative depth → throws
+    try {
+        a.getSlice(-1);
+        assert(false);
+    } catch (const std::invalid_argument&) {
+    }
+
+    // Depth == tensor depth (one past the last valid index 1) → throws
+    try {
+        a.getSlice(2);
+        assert(false);
+    } catch (const std::invalid_argument&) {
+    }
+
+    // Depth far beyond range → throws
+    try {
+        a.getSlice(100);
+        assert(false);
+    } catch (const std::invalid_argument&) {
+    }
+
+    std::cout << "PASSED: test_getSlice_invalid\n";
+}
+
+// ─── stackSlices ──────────────────────────────────────────────────────────────
+void test_stackSlices_basic() {
+    // Stack two {2,2,1} slices into {2,2,2}
+    Tensor s0({2, 2, 1}, {1, 2, 3, 4});
+    Tensor s1({2, 2, 1}, {5, 6, 7, 8});
+    Tensor stacked = Tensor::stackSlices({s0, s1});
+
+    assert(stacked.getShape()[0] == 2);
+    assert(stacked.getShape()[1] == 2);
+    assert(stacked.getShape()[2] == 2); // two slices → depth 2
+
+    // data is slice0 then slice1, concatenated
+    float expected[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    for (int i = 0; i < 8; ++i)
+        assert(floatEq(stacked.getData()[i], expected[i]));
+    std::cout << "PASSED: test_stackSlices_basic\n";
+}
+
+void test_stackSlices_single() {
+    // Stacking one slice gives a depth-1 tensor identical to that slice
+    Tensor s0({2, 2, 1}, {1, 2, 3, 4});
+    Tensor stacked = Tensor::stackSlices({s0});
+    assert(stacked.getShape()[2] == 1);
+    assert(stacked == s0);
+    std::cout << "PASSED: test_stackSlices_single\n";
+}
+
+void test_stackSlices_many() {
+    // Stack three {1,1,1} slices into {1,1,3}
+    Tensor s0({1, 1, 1}, {10});
+    Tensor s1({1, 1, 1}, {20});
+    Tensor s2({1, 1, 1}, {30});
+    Tensor stacked = Tensor::stackSlices({s0, s1, s2});
+
+    assert(stacked.getShape()[2] == 3);
+    assert(floatEq(stacked.getData()[0], 10.0f));
+    assert(floatEq(stacked.getData()[1], 20.0f));
+    assert(floatEq(stacked.getData()[2], 30.0f));
+    std::cout << "PASSED: test_stackSlices_many\n";
+}
+
+void test_stackSlices_nonsquare() {
+    // Non-square slices {2,3,1}: confirms stacking uses W*H, not a square assumption
+    std::vector<float> d0(6), d1(6);
+    std::iota(d0.begin(), d0.end(), 1.0f); // 1..6
+    std::iota(d1.begin(), d1.end(), 7.0f); // 7..12
+    Tensor s0({2, 3, 1}, d0);
+    Tensor s1({2, 3, 1}, d1);
+    Tensor stacked = Tensor::stackSlices({s0, s1});
+
+    assert(stacked.getShape()[0] == 2);
+    assert(stacked.getShape()[1] == 3);
+    assert(stacked.getShape()[2] == 2);
+    assert(stacked.getSize() == 12);
+    for (int i = 0; i < 6; ++i) {
+        assert(floatEq(stacked.getData()[i], d0[i]));     // first slice
+        assert(floatEq(stacked.getData()[i + 6], d1[i])); // second slice
+    }
+    std::cout << "PASSED: test_stackSlices_nonsquare\n";
+}
+
+void test_stackSlices_empty_throws() {
+    // Stacking an empty list has no shape to infer → throws
+    try {
+        Tensor::stackSlices({});
+        assert(false);
+    } catch (const std::invalid_argument&) {
+    }
+    std::cout << "PASSED: test_stackSlices_empty_throws\n";
+}
+
+// ─── Round-trip (getSlice <-> stackSlices are inverses) ───────────────────────
+void test_slice_stack_roundtrip() {
+    // Split a tensor into slices, restack them → must recover the original
+    Tensor original({2, 2, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+
+    std::vector<Tensor> slices;
+    for (int d = 0; d < 3; ++d)
+        slices.push_back(original.getSlice(d));
+
+    Tensor restacked = Tensor::stackSlices(slices);
+    assert(restacked == original);
+    std::cout << "PASSED: test_slice_stack_roundtrip\n";
+}
+
+void test_slice_stack_roundtrip_nonsquare() {
+    // Same round-trip on a non-square, multi-channel tensor
+    std::vector<float> data(24);
+    std::iota(data.begin(), data.end(), 1.0f); // 1..24
+    Tensor original({2, 4, 3}, data);          // W=2, H=4, D=3, sliceSize=8
+
+    std::vector<Tensor> slices;
+    for (int d = 0; d < 3; ++d)
+        slices.push_back(original.getSlice(d));
+
+    Tensor restacked = Tensor::stackSlices(slices);
+    assert(restacked == original);
+    std::cout << "PASSED: test_slice_stack_roundtrip_nonsquare\n";
+}
+
 // ─── operator== ───────────────────────────────────────────────────────────────
 void test_equality_same() {
     Tensor a({2, 1, 1}, {1, 2});
@@ -731,6 +943,23 @@ int main() {
     test_pad_preserves_data();
     test_pad_zero_returns_identical();
     test_pad_invalid();
+
+    // getSlice
+    test_getSlice();
+    test_getSlice_depth1();
+    test_getSlice_many_channels();
+    test_getSlice_nonsquare();
+    test_getSlice_is_copy();
+    test_getSlice_invalid();
+
+    // stackSlice
+    test_stackSlices_basic();
+    test_stackSlices_single();
+    test_stackSlices_many();
+    test_stackSlices_nonsquare();
+    test_stackSlices_empty_throws();
+    test_slice_stack_roundtrip();
+    test_slice_stack_roundtrip_nonsquare();
 
     // operator==
     test_equality_same();

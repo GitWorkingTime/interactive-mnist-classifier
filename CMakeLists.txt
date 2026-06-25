@@ -53,6 +53,10 @@ add_library(fc_layer "src/cnn/layers/fc_layer.cpp")
 target_include_directories(fc_layer PUBLIC ${CNN_INCLUDES})
 target_link_libraries(fc_layer PUBLIC weights_init tensor)
 
+add_library(conv_layer "src/cnn/layers/conv_layer.cpp")
+target_include_directories(conv_layer PUBLIC ${CNN_INCLUDES})
+target_link_libraries(conv_layer PUBLIC weights_init tensor)
+
 # ── Main Executable ───────────────────────────────────────────────────────────
 add_executable(main "src/main.cpp")
 target_link_libraries(main PRIVATE
@@ -65,6 +69,7 @@ target_link_libraries(main PRIVATE
     relu_layer
     maxpool_layer
     fc_layer
+    conv_layer
 )
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -87,3 +92,5 @@ add_cnn_test(test_mnist       "tests/cnn/helpers/test_mnist.cpp"           mnist
 add_cnn_test(test_relu        "tests/cnn/layers/test_relu.cpp"             relu_layer)
 add_cnn_test(test_maxpool     "tests/cnn/layers/test_maxpool.cpp"          maxpool_layer)
 add_cnn_test(test_fc          "tests/cnn/layers/test_fc.cpp"               fc_layer)
+add_cnn_test(test_conv        "tests/cnn/layers/test_conv.cpp"             conv_layer)
+

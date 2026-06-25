@@ -440,6 +440,60 @@ public:
      */
     Tensor pad(int padding) const;
 
+    /**
+     * @brief Extracts a single depth slice as a {W, H, 1} tensor.
+     *
+     * @par Description
+     * Returns a copy of one depth channel of the tensor as a standalone
+     * {W, H, 1} tensor, using 0-based indexing along the depth dimension.
+     * Useful for processing multi-channel tensors one slice at a time (for
+     * example, handling each input channel of a convolution separately).
+     *
+     * @param depth The depth index to extract, 0-based.
+     *              Must satisfy 0 <= depth < shape[2].
+     *
+     * @return A new {W, H, 1} tensor holding a copy of that depth slice's data.
+     *
+     * @throws std::invalid_argument if depth is out of bounds (< 0 or >= shape[2])
+     *
+     * @par Example
+     * @code
+     * Tensor t({2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8});
+     * Tensor s0 = t.getSlice(0); // {2,2,1}, data {1, 2, 3, 4}
+     * Tensor s1 = t.getSlice(1); // {2,2,1}, data {5, 6, 7, 8}
+     * @endcode
+     */
+    Tensor getSlice(int depth) const;
+
+    /**
+     * @brief Stacks a list of {W, H, 1} slices into a single {W, H, N} tensor.
+     *
+     * @par Description
+     * Concatenates N depth-1 slices along the depth dimension, producing one tensor
+     * whose depth equals the number of slices. The slices are stacked in list order:
+     * slices[0] becomes depth 0, slices[1] becomes depth 1, and so on. This is the
+     * inverse of getSlice — splitting a tensor with getSlice and restacking the
+     * results recovers the original. Used to assemble per-channel results back into a
+     * single tensor (for example, building a multi-channel filter gradient or the
+     * stacked output of a convolution layer).
+     *
+     * @param slices The depth-1 slices to stack, each of shape {W, H, 1}. Must be
+     *               non-empty, and all slices are expected to share the same W and H.
+     *
+     * @return A new tensor of shape {W, H, N}, where N is the number of slices.
+     *
+     * @throws std::invalid_argument if the slice list is empty (no shape to infer).
+     *
+     * @par Example
+     * @code
+     * Tensor s0({2, 2, 1}, {1, 2, 3, 4});
+     * Tensor s1({2, 2, 1}, {5, 6, 7, 8});
+     * Tensor stacked = Tensor::stackSlices({s0, s1});
+     * // stacked: shape {2, 2, 2}, data {1, 2, 3, 4, 5, 6, 7, 8}
+     * @endcode
+     */
+    static Tensor stackSlices(const std::vector<Tensor>& slices);
+
     // ─── Operator Overloading ─────────────────────────────────────────────────
     /**
      * @brief Assigns a flat float array to the Tensor's data.

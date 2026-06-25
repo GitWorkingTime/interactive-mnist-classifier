@@ -407,6 +407,34 @@ Tensor Tensor::pad(int padding) const {
     return buffer;
 }
 
+Tensor Tensor::getSlice(int depth) const {
+    // Validate input:
+    if (depth < 0 || depth >= shape[2]) {
+        throw std::invalid_argument("ERROR: Depth out of bounds - depth received: " + std::to_string(depth) + " | tensor depth: " + std::to_string(shape[2]));
+    }
+
+    int sliceSize = shape[0] * shape[1];
+    std::vector<float> sliceData(data.begin() + (sliceSize * depth), data.begin() + (sliceSize * (depth + 1)));
+
+    return Tensor({shape[0], shape[1], 1}, sliceData);
+}
+
+Tensor Tensor::stackSlices(const std::vector<Tensor>& slices) {
+    if (slices.empty()) {
+        throw std::invalid_argument("ERROR: cannot stack an empty slice list");
+    }
+    const std::vector<int>& s = slices[0].getShape();
+    int sliceSize = s[0] * s[1];
+
+    std::vector<float> data;
+    data.reserve(sliceSize * slices.size());
+    for (const Tensor& slice : slices) {
+        const std::vector<float>& sd = slice.getData();
+        data.insert(data.end(), sd.begin(), sd.end());
+    }
+    return Tensor({s[0], s[1], (int)slices.size()}, data);
+}
+
 // // ─── Operator Overloading ─────────────────────────────────────────────────
 Tensor& Tensor::operator=(const std::vector<float>& data) {
     // Validate new data's # of elements
