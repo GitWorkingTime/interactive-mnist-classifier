@@ -79,17 +79,19 @@ target_link_libraries(network PUBLIC
 )
 
 # ── Main Executable ───────────────────────────────────────────────────────────
-add_executable(training "src/training.cpp")
+add_executable(training "src/cnn/training.cpp")
 target_link_libraries(training PRIVATE
     network
     mnist
 )
 
-add_executable(main "src/main.cpp")
+add_executable(main "src/cnn/main.cpp")
 target_link_libraries(main PRIVATE
     network
     mnist
 )
+
+add_executable(server "src/web_app/backend/server.cpp")
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 # Each test links ONLY the libraries it directly needs; CMake pulls in the
