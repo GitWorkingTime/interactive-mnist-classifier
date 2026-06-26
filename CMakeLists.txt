@@ -92,6 +92,10 @@ target_link_libraries(main PRIVATE
 )
 
 add_executable(server "src/web_app/backend/server.cpp")
+target_link_libraries(server PRIVATE
+    network
+    mnist
+)
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 # Each test links ONLY the libraries it directly needs; CMake pulls in the

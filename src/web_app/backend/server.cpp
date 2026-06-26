@@ -6,6 +6,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+// CNN-related
+#include "mnist.h"
+#include "network.h"
+#include "tensor.h"
+#include <vector>
+
 #define PORT 8080 // The port users will connect to
 #define BUFFER_SIZE 1024
 
@@ -50,6 +56,20 @@ int main() {
     }
     std::cout << "server listening for connections\n";
 
+    // ─── Initialize the CNN model ────────────────────────────────────────────────
+    Network net;           // Builds the fixed architecture
+    net.load("model.bin"); // Loads the trained model
+    std::cout << "model is loaded\n";
+
+    // Load MNIST dataset to verify prediction works
+    std::vector<Tensor> testImages = mnist::loadImages("../data/t10k-images.idx3-ubyte");
+    std::vector<int> testLabels = mnist::loadLabels("../data/t10k-labels.idx1-ubyte");
+    std::cout << "images and labels are loaded\n";
+
+    // Grab first image to test with
+    Tensor testImg = testImages[0];
+    std::cout << "test image actual label: " << testLabels[0] << "\n";
+
     // ─── Accept incoming connections ─────────────────────────────────────────────
     while (true) {
         // Accept incoming connections
@@ -75,6 +95,10 @@ int main() {
             continue;
         }
 
+        // Make prediction
+        int predicted = net.predict(testImg);
+        std::cout << "predicted digit: " << predicted << "\n";
+
         // (VERBOSE) Log client information
         std::cout << "[" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "]\n";
 
@@ -87,7 +111,15 @@ int main() {
         std::cout << "version: " << version << "\n";
 
         // ─── Write to the socket ─────────────────────────────────────────────────
-        int valwrite = write(newsockfd, resp, strlen(resp));
+        // Make the response body
+        std::string body = "<html>Predicted digit: " + std::to_string(predicted) + "</html>\r\n";
+        std::string response =
+            "HTTP/1.0 200 OK\r\n"
+            "Server: webserver-cpp\r\n"
+            "Content-type: text/html\r\n\r\n" +
+            body;
+
+        int valwrite = write(newsockfd, response.c_str(), response.size());
         if (valwrite < 0) {
             perror("webserver (write)");
             continue;
