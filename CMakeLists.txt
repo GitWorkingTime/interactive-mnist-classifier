@@ -19,6 +19,7 @@ set(CNN_INCLUDES
     ${PROJECT_SOURCE_DIR}/includes/cnn/operations
     ${PROJECT_SOURCE_DIR}/includes/cnn/helpers
     ${PROJECT_SOURCE_DIR}/includes/cnn/layers
+    ${PROJECT_SOURCE_DIR}/includes/cnn/
     ${CMAKE_BINARY_DIR}/generated
 )
 
@@ -65,19 +66,29 @@ add_library(conv_layer "src/cnn/layers/conv_layer.cpp")
 target_include_directories(conv_layer PUBLIC ${CNN_INCLUDES})
 target_link_libraries(conv_layer PUBLIC weights_init tensor)
 
-# ── Main Executable ───────────────────────────────────────────────────────────
-add_executable(main "src/main.cpp")
-target_link_libraries(main PRIVATE
+add_library(network "src/cnn/network.cpp")
+target_include_directories(network PUBLIC ${CNN_INCLUDES})
+target_link_libraries(network PUBLIC
     tensor
     activations
-    pooling
     loss
-    mnist
-    weights_init
     relu_layer
     maxpool_layer
     fc_layer
     conv_layer
+)
+
+# ── Main Executable ───────────────────────────────────────────────────────────
+add_executable(training "src/training.cpp")
+target_link_libraries(training PRIVATE
+    network
+    mnist
+)
+
+add_executable(main "src/main.cpp")
+target_link_libraries(main PRIVATE
+    network
+    mnist
 )
 
 # ── Testing ───────────────────────────────────────────────────────────────────
