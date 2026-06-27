@@ -78,6 +78,19 @@ target_link_libraries(network PUBLIC
     conv_layer
 )
 
+# ── Web app include directories ───────────────────────────────────────────────
+set(WEB_APP_INCLUDES
+    ${PROJECT_SOURCE_DIR}/includes/web_app/encode
+    ${PROJECT_SOURCE_DIR}/includes/web_app/hash
+)
+
+# ── Web app libraries ─────────────────────────────────────────────────────────
+add_library(base64 "src/web_app/backend/encode/base64.cpp")
+target_include_directories(base64 PUBLIC ${WEB_APP_INCLUDES})
+
+add_library(sha1 "src/web_app/backend/hash/sha-1.cpp")
+target_include_directories(sha1 PUBLIC ${WEB_APP_INCLUDES})
+
 # ── Main Executable ───────────────────────────────────────────────────────────
 add_executable(training "src/cnn/training.cpp")
 target_link_libraries(training PRIVATE
@@ -95,6 +108,8 @@ add_executable(server "src/web_app/backend/server.cpp")
 target_link_libraries(server PRIVATE
     network
     mnist
+    base64
+    sha1
 )
 
 # ── Testing ───────────────────────────────────────────────────────────────────
@@ -118,4 +133,5 @@ add_cnn_test(test_relu        "tests/cnn/layers/test_relu.cpp"             relu_
 add_cnn_test(test_maxpool     "tests/cnn/layers/test_maxpool.cpp"          maxpool_layer)
 add_cnn_test(test_fc          "tests/cnn/layers/test_fc.cpp"               fc_layer)
 add_cnn_test(test_conv        "tests/cnn/layers/test_conv.cpp"             conv_layer)
+add_cnn_test(test_base64       "tests/web_app/test_base64.cpp"             base64)
 
