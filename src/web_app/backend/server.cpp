@@ -12,15 +12,15 @@
 #include "tensor.h"
 #include <vector>
 
+// WebSocket-related
+#include "base64.h"
+#include "sha-1.h"
+
 #define PORT 8080 // The port users will connect to
 #define BUFFER_SIZE 1024
 
 int main() {
     char buffer[BUFFER_SIZE];
-    char resp[] = "HTTP/1.0 200 OK\r\n"
-                  "Server: webserver-cpp\r\n"
-                  "Content-type: text/html\r\n\r\n"
-                  "<html>Hello World</html>\r\n";
 
     // ─── Build the socket ────────────────────────────────────────────────────────
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -103,21 +103,48 @@ int main() {
         std::cout << "[" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "]\n";
 
         // (VERBOSE) Read the request
-        char method[BUFFER_SIZE], uri[BUFFER_SIZE], version[BUFFER_SIZE];
-        sscanf(buffer, "%s %s %s", method, uri, version);
+        std::cout << "─── Raw request ───\n";
+        std::cout.write(buffer, valread);
+        std::cout << "\n───────────────────\n";
 
-        std::cout << "method: " << method << "\n";
-        std::cout << "uri: " << uri << "\n";
-        std::cout << "version: " << version << "\n";
+        std::string response;
+
+        // Parse the request header to find the Sec-WebSocket-Key
+        std::string headers(buffer, valread);
+
+        // Verify that the request is upgrading to websocket:
+        size_t upgrade = headers.find("Upgrade: websocket");
+        if (upgrade != std::string::npos) {
+            // Extract key
+            size_t pos = headers.find("Sec-WebSocket-Key:");
+            size_t valueStart = pos + strlen("Sec-WebSocket-Key: ");
+            size_t valueEnd = headers.find("\r\n", valueStart);
+            std::string key = headers.substr(valueStart, valueEnd - valueStart);
+            std::cout << "[" << key << "]\n";
+
+            // Pass it through sha-1
+            std::string combined = key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+            std::string accept = hash(combined.c_str());
+
+            // Create response
+            response =
+                "HTTP/1.1 101 Switching Protocols\r\n"
+                "Upgrade: websocket\r\n"
+                "Connection: Upgrade\r\n"
+                "Sec-WebSocket-Accept: " +
+                accept + "\r\n"
+                         "\r\n";
+        } else {
+            // Make the response body
+            std::string body = "<html>Predicted digit: " + std::to_string(predicted) + "</html>\r\n";
+            response =
+                "HTTP/1.0 200 OK\r\n"
+                "Server: webserver-cpp\r\n"
+                "Content-type: text/html\r\n\r\n" +
+                body;
+        }
 
         // ─── Write to the socket ─────────────────────────────────────────────────
-        // Make the response body
-        std::string body = "<html>Predicted digit: " + std::to_string(predicted) + "</html>\r\n";
-        std::string response =
-            "HTTP/1.0 200 OK\r\n"
-            "Server: webserver-cpp\r\n"
-            "Content-type: text/html\r\n\r\n" +
-            body;
 
         int valwrite = write(newsockfd, response.c_str(), response.size());
         if (valwrite < 0) {
@@ -125,7 +152,7 @@ int main() {
             continue;
         }
 
-        close(newsockfd);
+        // close(newsockfd);
     }
 
     return 0;
