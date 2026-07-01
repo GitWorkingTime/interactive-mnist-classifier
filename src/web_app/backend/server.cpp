@@ -95,10 +95,6 @@ int main() {
             continue;
         }
 
-        // Make prediction
-        int predicted = net.predict(testImg);
-        std::cout << "predicted digit: " << predicted << "\n";
-
         // (VERBOSE) Log client information
         std::cout << "[" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "]\n";
 
@@ -109,7 +105,7 @@ int main() {
 
         std::string response;
 
-        // Parse the request header to find the Sec-WebSocket-Key
+        // Parse the request headers
         std::string headers(buffer, valread);
 
         // Verify that the request is upgrading to websocket:
@@ -134,25 +130,81 @@ int main() {
                 "Sec-WebSocket-Accept: " +
                 accept + "\r\n"
                          "\r\n";
+
+            // ─── Write to the socket ─────────────────────────────────────────────────
+            int valwrite = write(newsockfd, response.c_str(), response.size());
+            if (valwrite < 0) {
+                perror("webserver (write)");
+                continue;
+            }
+
+            // Keep the socket alive for the WebSocket upgrade
+            while (true) {
+                int frameBytes = read(newsockfd, buffer, BUFFER_SIZE);
+                if (frameBytes <= 0) {
+                    // 0 = client closed connection; <0 = error. Either way, stop.
+                    std::cout << "connection closed\n";
+                    break;
+                }
+
+                // Print the raw frame bytes in hex so we can see the structure
+                std::cout << "─── Frame (" << frameBytes << " bytes) ───\n";
+                for (int i = 0; i < frameBytes; ++i) {
+                    printf("%02X ", (unsigned char)buffer[i]);
+                }
+                printf("\n");
+
+                // ─── Process the payload ─────────────────────────────────────────────────
+                unsigned char opcode = (unsigned char)buffer[0] & 0x0F;
+                unsigned char payloadLen = (unsigned char)buffer[1] & 0x7F;
+                unsigned char maskKey[4] = {(unsigned char)buffer[2], (unsigned char)buffer[3], (unsigned char)buffer[4], (unsigned char)buffer[5]};
+
+                // Unmask the payload:
+                std::vector<unsigned char> payload;
+                for (int i = 0; i < payloadLen; ++i) {
+                    payload.push_back(buffer[i + 6] ^ maskKey[i % 4]);
+                }
+
+                for (int i = 0; i < payloadLen; ++i) {
+                    std::cout << (char)payload[i];
+                }
+                std::cout << "\n";
+
+                // ─── Write to the socket ─────────────────────────────────────────────────
+                std::vector<unsigned char> returnBytes;
+
+                // FIN + opcode
+                returnBytes.push_back(0x81);
+                returnBytes.push_back(payloadLen);
+
+                for (int i = 0; i < payloadLen; ++i) {
+                    returnBytes.push_back(payload[i]);
+                }
+
+                int valWrite = write(newsockfd, returnBytes.data(), returnBytes.size());
+                if (valWrite < 0) {
+                    perror("webserver (frame write)");
+                    break; // exit the frame loop on write error
+                }
+            }
+
         } else {
             // Make the response body
-            std::string body = "<html>Predicted digit: " + std::to_string(predicted) + "</html>\r\n";
             response =
                 "HTTP/1.0 200 OK\r\n"
                 "Server: webserver-cpp\r\n"
-                "Content-type: text/html\r\n\r\n" +
-                body;
+                "Content-type: text/html\r\n\r\n"
+                "<html>Hello World<html>\r\n";
+
+            // ─── Write to the socket ─────────────────────────────────────────────────
+            int valwrite = write(newsockfd, response.c_str(), response.size());
+            if (valwrite < 0) {
+                perror("webserver (write)");
+                continue;
+            }
         }
 
-        // ─── Write to the socket ─────────────────────────────────────────────────
-
-        int valwrite = write(newsockfd, response.c_str(), response.size());
-        if (valwrite < 0) {
-            perror("webserver (write)");
-            continue;
-        }
-
-        // close(newsockfd);
+        close(newsockfd);
     }
 
     return 0;
