@@ -51,8 +51,8 @@ void test_reverse_int_zero() {
 // ─── oneHotEncodeLabels ───────────────────────────────────────────────────────
 void test_onehot_shape() {
     Tensor t = mnist::oneHotEncodeLabels(3);
-    assert(t.getShape()[0] == 10);
-    assert(t.getShape()[1] == 1);
+    assert(t.getShape()[0] == 1);
+    assert(t.getShape()[1] == 10);
     assert(t.getShape()[2] == 1);
     std::cout << "PASSED: test_onehot_shape\n";
 }
@@ -74,15 +74,15 @@ void test_onehot_first_label() {
     // label 0 → 1.0 at index 0
     Tensor t = mnist::oneHotEncodeLabels(0);
     assert(floatEq(t.at({0, 0, 0}), 1.0f));
-    assert(floatEq(t.at({1, 0, 0}), 0.0f));
+    assert(floatEq(t.at({0, 1, 0}), 0.0f));
     std::cout << "PASSED: test_onehot_first_label\n";
 }
 
 void test_onehot_last_label() {
     // label 9 → 1.0 at index 9
     Tensor t = mnist::oneHotEncodeLabels(9);
-    assert(floatEq(t.at({9, 0, 0}), 1.0f));
-    assert(floatEq(t.at({8, 0, 0}), 0.0f));
+    assert(floatEq(t.at({0, 9, 0}), 1.0f));
+    assert(floatEq(t.at({0, 8, 0}), 0.0f));
     std::cout << "PASSED: test_onehot_last_label\n";
 }
 
@@ -102,7 +102,7 @@ void test_onehot_all_labels_distinct_position() {
     // Each label puts its 1.0 at the matching index
     for (int label = 0; label <= 9; ++label) {
         Tensor t = mnist::oneHotEncodeLabels(label);
-        assert(floatEq(t.at({label, 0, 0}), 1.0f));
+        assert(floatEq(t.at({0, label, 0}), 1.0f));
     }
     std::cout << "PASSED: test_onehot_all_labels_distinct_position\n";
 }

@@ -90,6 +90,7 @@ target_include_directories(base64 PUBLIC ${WEB_APP_INCLUDES})
 
 add_library(sha1 "src/web_app/backend/hash/sha-1.cpp")
 target_include_directories(sha1 PUBLIC ${WEB_APP_INCLUDES})
+target_link_libraries(sha1 PUBLIC base64)
 
 # ── Main Executable ───────────────────────────────────────────────────────────
 add_executable(training "src/cnn/training.cpp")
@@ -133,5 +134,7 @@ add_cnn_test(test_relu        "tests/cnn/layers/test_relu.cpp"             relu_
 add_cnn_test(test_maxpool     "tests/cnn/layers/test_maxpool.cpp"          maxpool_layer)
 add_cnn_test(test_fc          "tests/cnn/layers/test_fc.cpp"               fc_layer)
 add_cnn_test(test_conv        "tests/cnn/layers/test_conv.cpp"             conv_layer)
-add_cnn_test(test_base64       "tests/web_app/test_base64.cpp"             base64)
+add_cnn_test(test_base64      "tests/web_app/test_base64.cpp"              base64)
+add_cnn_test(test_sha1        "tests/web_app/test_sha1.cpp"                sha1)
+
 
