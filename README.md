@@ -16,7 +16,7 @@ web-server or deep-learning frameworks.
 - [Server](#server)
 - [Model](#model)
 - [Frontend](#frontend)
-- [Preprocessing (important)](#preprocessing-important)
+- [Preprocessing](#preprocessing)
 - [Build & run](#build--run)
 - [Known limitations](#known-limitations)
 - [Resources](#resources)
