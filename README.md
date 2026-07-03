@@ -158,8 +158,7 @@ The frontend therefore preprocesses each drawing before sending it:
 4. Extract 784 grayscale bytes.
 
 This bounding-box approach centers by **geometry**, not by center of mass. Canonical MNIST
-centers by center of mass; the difference between the two is a known remaining approximation
-in this project and is **not confirmed** to be negligible.
+centers by center of mass, so this may lead to some misclassification error.
 
 Server-side normalization (`byte / 255`) exactly matches the training-time normalization in
 `mnist.cpp`, so canvas input and training input use the same [0, 1] scaling.
@@ -167,10 +166,6 @@ Server-side normalization (`byte / 255`) exactly matches the training-time norma
 ---
 
 ## Build & run
-
-> Note: exact build commands are **not specified** in the materials this README was written
-> from. The steps below describe what the code requires; adapt them to your build setup.
-
 The server requires:
 
 - A C++ compiler with C++11 or later (the code uses `<cstdint>`, `std::vector`, etc.).
@@ -205,7 +200,7 @@ These are open items identified during development:
   784-byte payloads a browser will typically send a single unfragmented frame, but this is
   **not guaranteed** for all browsers or payload sizes.
 - **Single-threaded, one connection at a time.** The server handles connections sequentially.
-- **Geometric vs center-of-mass centering.** See [Preprocessing](#preprocessing-important).
+- **Geometric vs center-of-mass centering.** See [Preprocessing](#preprocessing).
 - **Occasional misclassification.** Some digits misclassify.
 
 ---
