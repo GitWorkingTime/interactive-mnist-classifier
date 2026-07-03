@@ -4,7 +4,7 @@ A real-time handwritten-digit recognition app. A browser canvas streams a drawin
 WebSocket to a from-scratch C++ server, which runs a convolutional neural network (CNN) and
 returns a live probability distribution over the digits 0–9 as you draw.
 
-The C++ side implements the WebSocket protocol, the CNN, and the tensor math by hand — no
+The C++ side implements the WebSocket protocol, the CNN, and the tensor math by hand. No
 web-server or deep-learning frameworks.
 
 ---
@@ -144,7 +144,7 @@ A single-file React component (`App.jsx`) styled with Tailwind utility classes. 
 
 ---
 
-## Preprocessing (important)
+## Preprocessing
 
 MNIST training digits are size-normalized and centered within the 28×28 field. A plain
 downscale of the full canvas does **not** reproduce that, and during development this caused
