@@ -228,12 +228,19 @@ int main() {
                     Tensor input({28, 28, 1}, pixels);
 
                     // Predict — Network::predict returns the highest-probability class index
-                    int digit = net.predict(input);
-                    std::cout << "prediction: " << digit << "\n";
+                    Tensor probs = net.predictProbabilities(input); // {10, 1, 1}, softmax
+                    const std::vector<float>& p = probs.getData();  // 10 floats, row-major
 
-                    // Send the predicted digit back as a 1-byte text frame.
-                    // A single digit 0–9 fits the ≤125 direct-length branch.
-                    std::string out = std::to_string(digit);
+                    // Serialize as text: "0.01,0.00,0.95,..." (10 comma-separated values)
+                    std::string out;
+                    for (size_t k = 0; k < p.size(); ++k) {
+                        if (k)
+                            out += ",";
+                        out += std::to_string(p[k]);
+                    }
+
+                    // Text frame. out is well under 125 bytes (10 values × ~8 chars ≈ 80),
+                    // so the direct-length branch applies.
                     std::vector<unsigned char> frame;
                     frame.push_back(0x81); // FIN + text opcode
                     frame.push_back((unsigned char)out.size());
