@@ -1,5 +1,7 @@
 // POSIX imports
+#include <algorithm>
 #include <arpa/inet.h>
+#include <cstdint>
 #include <errno.h>
 #include <iostream>
 #include <string.h>
@@ -19,6 +21,20 @@
 #define PORT 8080 // The port users will connect to
 #define BUFFER_SIZE 1024
 
+// Reads exactly n bytes (appending to out). Returns false if peer closed / error.
+bool readExactly(int fd, std::vector<unsigned char>& out, size_t n) {
+    size_t have = 0;
+    unsigned char tmp[BUFFER_SIZE];
+    while (have < n) {
+        ssize_t r = read(fd, tmp, std::min(n - have, (size_t)BUFFER_SIZE));
+        if (r <= 0)
+            return false; // 0 = closed, <0 = error
+        out.insert(out.end(), tmp, tmp + r);
+        have += r;
+    }
+    return true;
+}
+
 int main() {
     char buffer[BUFFER_SIZE];
 
@@ -29,6 +45,13 @@ int main() {
         return 1;
     }
     std::cout << "Socket created successfully\n";
+
+    // Allow re-binding to the same address (avoids "Address already in use" during TIME_WAIT after restart)
+    int opt = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) != 0) {
+        perror("webserver (setsockopt)");
+        return 1;
+    }
 
     // ─── Bind an address to the socket ───────────────────────────────────────────
     // Create the address to bind the socket to (i.e. addrinfo)
@@ -72,9 +95,7 @@ int main() {
 
     // ─── Accept incoming connections ─────────────────────────────────────────────
     while (true) {
-        // Accept incoming connections
         int newsockfd = accept(sockfd, (struct sockaddr*)&host_addr, (socklen_t*)&host_addrlen);
-
         if (newsockfd < 0) {
             perror("webserver (accept)");
             continue;
@@ -88,27 +109,24 @@ int main() {
             continue;
         }
 
-        // ─── Read from the socket ────────────────────────────────────────────────
+        // ─── Read the HTTP handshake request ─────────────────────────────────────
+        // The handshake is a small text request, so one read is fine here.
         int valread = read(newsockfd, buffer, BUFFER_SIZE);
         if (valread < 0) {
             perror("webserver (read)");
             continue;
         }
 
-        // (VERBOSE) Log client information
         std::cout << "[" << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "]\n";
-
-        // (VERBOSE) Read the request
         std::cout << "─── Raw request ───\n";
         std::cout.write(buffer, valread);
         std::cout << "\n───────────────────\n";
 
         std::string response;
 
-        // Parse the request headers
+        // Convert buffer bytes into string
         std::string headers(buffer, valread);
 
-        // Verify that the request is upgrading to websocket:
         size_t upgrade = headers.find("Upgrade: websocket");
         if (upgrade != std::string::npos) {
             // Extract key
@@ -118,11 +136,9 @@ int main() {
             std::string key = headers.substr(valueStart, valueEnd - valueStart);
             std::cout << "[" << key << "]\n";
 
-            // Pass it through sha-1
             std::string combined = key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
             std::string accept = hash(combined.c_str());
 
-            // Create response
             response =
                 "HTTP/1.1 101 Switching Protocols\r\n"
                 "Upgrade: websocket\r\n"
@@ -131,72 +147,117 @@ int main() {
                 accept + "\r\n"
                          "\r\n";
 
-            // ─── Write to the socket ─────────────────────────────────────────────────
             int valwrite = write(newsockfd, response.c_str(), response.size());
             if (valwrite < 0) {
                 perror("webserver (write)");
                 continue;
             }
 
-            // Keep the socket alive for the WebSocket upgrade
+            // ─── Frame loop ──────────────────────────────────────────────────────
             while (true) {
-                int frameBytes = read(newsockfd, buffer, BUFFER_SIZE);
-                if (frameBytes <= 0) {
-                    // 0 = client closed connection; <0 = error. Either way, stop.
+                std::vector<unsigned char> rawFrame; // accumulated for the hex dump
+
+                // 1. First 2 bytes: FIN/opcode + MASK/length-indicator. hdr -> "header"
+                std::vector<unsigned char> hdr;
+                if (!readExactly(newsockfd, hdr, 2)) {
                     std::cout << "connection closed\n";
                     break;
                 }
+                rawFrame.insert(rawFrame.end(), hdr.begin(), hdr.end());
 
-                // Print the raw frame bytes in hex so we can see the structure
-                std::cout << "─── Frame (" << frameBytes << " bytes) ───\n";
-                for (int i = 0; i < frameBytes; ++i) {
-                    printf("%02X ", (unsigned char)buffer[i]);
+                bool fin = hdr[0] & 0x80; // not used yet (see note on fragmentation)
+                unsigned char opcode = hdr[0] & 0x0F;
+                bool masked = hdr[1] & 0x80;
+                uint64_t len = hdr[1] & 0x7F;
+
+                // 2. Extended payload length
+                if (len == 126) {
+                    std::vector<unsigned char> ext;
+                    if (!readExactly(newsockfd, ext, 2))
+                        break;
+                    rawFrame.insert(rawFrame.end(), ext.begin(), ext.end());
+                    len = ((uint64_t)ext[0] << 8) | ext[1]; // 16-bit big-endian
+                } else if (len == 127) {
+                    std::vector<unsigned char> ext;
+                    if (!readExactly(newsockfd, ext, 8))
+                        break;
+                    rawFrame.insert(rawFrame.end(), ext.begin(), ext.end());
+                    len = 0;
+                    for (int i = 0; i < 8; ++i)
+                        len = (len << 8) | ext[i]; // 64-bit big-endian
+                }
+
+                // 3. Mask key (client→server frames are always masked)
+                unsigned char maskKey[4] = {0, 0, 0, 0};
+                if (masked) {
+                    std::vector<unsigned char> mk;
+                    if (!readExactly(newsockfd, mk, 4))
+                        break;
+                    rawFrame.insert(rawFrame.end(), mk.begin(), mk.end());
+                    for (int i = 0; i < 4; ++i)
+                        maskKey[i] = mk[i];
+                }
+
+                // 4. Payload
+                std::vector<unsigned char> payload;
+                if (!readExactly(newsockfd, payload, len))
+                    break;
+                rawFrame.insert(rawFrame.end(), payload.begin(), payload.end());
+                for (uint64_t i = 0; i < len; ++i)
+                    payload[i] ^= maskKey[i % 4];
+
+                // (VERBOSE) Frame summary + hex dump
+                std::cout << "─── Frame (" << rawFrame.size() << " bytes, opcode 0x"
+                          << std::hex << (int)opcode << std::dec
+                          << ", payload " << len << ") ───\n";
+                for (size_t i = 0; i < rawFrame.size(); ++i) {
+                    printf("%02X ", rawFrame[i]);
                 }
                 printf("\n");
 
-                // ─── Process the payload ─────────────────────────────────────────────────
-                unsigned char opcode = (unsigned char)buffer[0] & 0x0F;
-                unsigned char payloadLen = (unsigned char)buffer[1] & 0x7F;
-                unsigned char maskKey[4] = {(unsigned char)buffer[2], (unsigned char)buffer[3], (unsigned char)buffer[4], (unsigned char)buffer[5]};
+                // ─── Payload → normalized Tensor → prediction ────────────────
+                // The payload is 784 raw bytes (0–255), one per pixel, row-major.
+                if (opcode == 0x2 && len == 784) {
+                    // Normalize exactly as mnist::loadImages does: byte / 255.0f
+                    std::vector<float> pixels(784);
+                    for (int j = 0; j < 784; ++j) {
+                        pixels[j] = payload[j] / 255.0f;
+                    }
 
-                // Unmask the payload:
-                std::vector<unsigned char> payload;
-                for (int i = 0; i < payloadLen; ++i) {
-                    payload.push_back(buffer[i + 6] ^ maskKey[i % 4]);
-                }
+                    // Same shape mnist::loadImages builds: {cols, rows, 1} = {28, 28, 1}
+                    Tensor input({28, 28, 1}, pixels);
 
-                for (int i = 0; i < payloadLen; ++i) {
-                    std::cout << (char)payload[i];
-                }
-                std::cout << "\n";
+                    // Predict — Network::predict returns the highest-probability class index
+                    int digit = net.predict(input);
+                    std::cout << "prediction: " << digit << "\n";
 
-                // ─── Write to the socket ─────────────────────────────────────────────────
-                std::vector<unsigned char> returnBytes;
+                    // Send the predicted digit back as a 1-byte text frame.
+                    // A single digit 0–9 fits the ≤125 direct-length branch.
+                    std::string out = std::to_string(digit);
+                    std::vector<unsigned char> frame;
+                    frame.push_back(0x81); // FIN + text opcode
+                    frame.push_back((unsigned char)out.size());
+                    frame.insert(frame.end(), out.begin(), out.end());
 
-                // FIN + opcode
-                returnBytes.push_back(0x81);
-                returnBytes.push_back(payloadLen);
-
-                for (int i = 0; i < payloadLen; ++i) {
-                    returnBytes.push_back(payload[i]);
-                }
-
-                int valWrite = write(newsockfd, returnBytes.data(), returnBytes.size());
-                if (valWrite < 0) {
-                    perror("webserver (frame write)");
-                    break; // exit the frame loop on write error
+                    int valWrite = write(newsockfd, frame.data(), frame.size());
+                    if (valWrite < 0) {
+                        perror("webserver (prediction write)");
+                        break;
+                    }
+                } else {
+                    // Non-784 or non-binary frame (e.g. a close/ping/text frame): ignore for now.
+                    std::cout << "ignoring frame (opcode 0x" << std::hex << (int)opcode
+                              << std::dec << ", payload " << len << ")\n";
                 }
             }
 
         } else {
-            // Make the response body
             response =
                 "HTTP/1.0 200 OK\r\n"
                 "Server: webserver-cpp\r\n"
                 "Content-type: text/html\r\n\r\n"
                 "<html>Hello World<html>\r\n";
 
-            // ─── Write to the socket ─────────────────────────────────────────────────
             int valwrite = write(newsockfd, response.c_str(), response.size());
             if (valwrite < 0) {
                 perror("webserver (write)");
